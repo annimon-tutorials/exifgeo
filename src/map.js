@@ -1,39 +1,38 @@
 const photosSource = new ol.source.Vector();
+const clusterSource = new ol.source.Cluster({
+  distance: 30,
+  minDistance: 10,
+  source: photosSource
+});
 
 // Configure map layers: bottom - OpenStreetMap map, top - photo thumbnails
 const layerOSM = new ol.layer.Tile({
   source: new ol.source.OSM()
 });
-const layerThumbs = new ol.layer.Vector({
-  source: photosSource,
-  style: thumbStyle,
+const layerClusters = new ol.layer.Vector({
+  source: clusterSource,
+  style: clusterStyle,
   updateWhileAnimating: true,
   updateWhileInteracting: true,
 });
 const map = new ol.Map({
   target: 'map',
-  layers: [layerOSM, layerThumbs],
+  layers: [layerOSM, layerClusters],
   view: new ol.View({
     center: ol.proj.transform([20, 47], 'EPSG:4326', 'EPSG:3857'),
-    zoom: 4
+    zoom: 4,
+    maxZoom: 20
   })
 });
 
-// Configure thumbnail selector
-const thumbSelector = new ol.interaction.Select({
-  layers: [layerThumbs],
-  style: selectedStyle
-});
-map.addInteraction(thumbSelector);
-
-const selectedFeatures = thumbSelector.getFeatures();
-selectedFeatures.on('add', event => {
-  const feature = event.target.item(0);
-  const details = photoDetails(feature);
-  document.getElementById('photo-details').innerHTML = details;
-});
-selectedFeatures.on('remove', () => {
-  document.getElementById('photo-details').innerHTML = '';
+map.on('click', event => {
+  layerClusters.getFeatures(event.pixel).then(clickedFeatures => {
+    if (!clickedFeatures.length) return;
+    const features = clickedFeatures[0].get('features');
+    // Show photo details
+    const details = features.map(f => photoDetails(f));
+    document.getElementById('photo-details').innerHTML = details.join();
+  });
 });
 
 const handleMapDataLoaded = items => {
@@ -55,6 +54,15 @@ handleMapDataLoaded([{
   "make": "Sony Ericsson",
   "model": "MK16i",
   "date": "2017-06-02 19:30:08"
+},{
+  "name": "dsc03425_1211.jpg",
+  "path": "https://annimon.com/albums/files/dsc03425_1211.jpg",
+  "preview": "https://annimon.com/albums/screens/dsc03425_1211.jpg.250.png",
+  "lat": 47.8,
+  "lon": 37.27,
+  "make": "Sony Ericsson",
+  "model": "C510i",
+  "date": "2011-06-03 16:55:23"
 }]);
 
 // -- photo details --
@@ -71,6 +79,27 @@ function photoDetails(feature) {
 // -- icon styles --
 const cache = {};
 
+function clusterStyle(feature, resolution) {
+  const features = feature.get('features');
+  const size = features.length;
+  const key = `cl-${size}`;
+  if (!cache[key]) {
+    cache[key] = new ol.style.Style({
+      zIndex: 110,
+      image: new ol.style.Circle({
+        radius: 12,
+        stroke: new ol.style.Stroke({color: '#8AFFD9'}),
+        fill: new ol.style.Fill({color: '#229D75'})
+      }),
+      text: new ol.style.Text({
+        text: `${size}`,
+        fill: new ol.style.Fill({color: '#fff'})
+      }),
+    });
+  }
+  return cache[key];
+}
+
 function photoStyle(feature, scale) {
   const url = feature.get('url');
   const key = `${scale}${url}`;
@@ -84,10 +113,6 @@ function photoStyle(feature, scale) {
 
 function thumbStyle(feature, resolution) {
   return [photoStyle(feature, clamp(0.2, 0.1 / resolution, 1))];
-}
-
-function selectedStyle(feature, resolution) {
-  return [photoStyle(feature, clamp(0.4, 0.14 / resolution, 1.2))];
 }
 
 function clamp(min, value, max) {
