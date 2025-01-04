@@ -5,15 +5,74 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Photos map</title>
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/ol@v10.3.1/ol.css">
-  <style>html, body, .map {
-    padding: 0;
-    margin: 0;
-    width: 100%;
-    height: 100%;
-  }</style>
+<style>
+html, body {
+  padding: 0;
+  margin: 0;
+  width: 100%;
+  height: 100%;
+}
+body {
+  display: grid;
+  grid-template-columns: 3fr 1fr;
+}
+.map {
+  min-width: 75%;
+  height: 100%;
+  background-color: #b5d0d0;
+}
+
+@media (max-width: 768px) {
+  body {
+      grid-template-columns: 1fr;
+      grid-template-rows: auto auto;
+  }
+}
+
+#photo-details {
+  overflow: auto;
+}
+.photo-details-container {
+  max-width: 100%;
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 0.6rem;
+  align-items: start;
+}
+.photo-thumbnail {
+  max-width: 150px;
+  max-height: 150px;
+  object-fit: cover;
+}
+.photo-details-content {
+  display: flex;
+  flex-direction: column;
+}
+.photo-details-content h3 {
+  margin: 0;
+}
+.photo-details-content p {
+  margin: 0.2rem 0;
+}
+</style>
 </head>
 <body>
   <div id="map" class="map"></div>
+  <div id="photo-details"></div>
+
+  <script type="text/html" id="photo-template">
+    <div class="photo-details-container">
+      <a href="{path}" target="_blank" title="Click to open photo in new tab">
+        <img src="{preview}" class="photo-thumbnail">
+      </a>
+      <div class="photo-details-content">
+        <h3>{name}</h3>
+        <p><b>Camera:</b> {make} {model}</p>
+        <p><b>Date:</b> {date}</p>
+      </div>
+    </div>
+  </script>
+
   <script src="https://cdn.jsdelivr.net/npm/ol@v10.3.1/dist/ol.js"></script>
   <script src="map.js"></script>
 </body>
