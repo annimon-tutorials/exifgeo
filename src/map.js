@@ -29,9 +29,17 @@ map.on('click', event => {
   layerClusters.getFeatures(event.pixel).then(clickedFeatures => {
     if (!clickedFeatures.length) return;
     const features = clickedFeatures[0].get('features');
-    // Show photo details
-    const details = features.map(f => photoDetails(f));
-    document.getElementById('photo-details').innerHTML = details.join();
+    if (features.length > 1 && !isMaximumZoom(map.getView())) {
+      // Zoom in
+      const extent = ol.extent.boundingExtent(
+        features.map(r => r.getGeometry().getCoordinates()),
+      );
+      map.getView().fit(extent, {duration: 400, padding: [150, 150, 150, 150]});
+    } else {
+      // Show photo details
+      const details = features.map(f => photoDetails(f));
+      document.getElementById('photo-details').innerHTML = details.join();
+    }
   });
 });
 
@@ -82,6 +90,8 @@ const cache = {};
 function clusterStyle(feature, resolution) {
   const features = feature.get('features');
   const size = features.length;
+  if (size === 1) return thumbStyle(features[0], resolution);
+
   const key = `cl-${size}`;
   if (!cache[key]) {
     cache[key] = new ol.style.Style({
@@ -119,4 +129,10 @@ function clamp(min, value, max) {
   if (value < min) return min;
   if (value > max) return max;
   return value;
+}
+
+function isMaximumZoom(view) {
+  const maxZoom = view.getMaxZoom();
+  const currentZoom = view.getZoom();
+  return currentZoom >= maxZoom;
 }
