@@ -54,7 +54,7 @@ fn main() -> ExitCode {
         input_dir.as_os_str().to_string_lossy()
     );
 
-    let photos = WalkDir::new(input_dir)
+    let supported_files = WalkDir::new(input_dir)
         .into_iter()
         .filter_map(|e| e.ok())
         .filter(|e| e.file_type().is_file())
@@ -68,15 +68,23 @@ fn main() -> ExitCode {
                 _ => false,
             }
         })
+        .map(|e| e.into_path())
+        .collect::<Vec<PathBuf>>();
+    let max_files = supported_files.len();
+
+    let photos = supported_files
+        .iter()
         .enumerate()
-        .filter_map(|(idx, e)| {
-            let exif = match File::open(e.path()) {
+        .filter_map(|(idx, path)| {
+            let idx = idx + 1;
+            print!("\rProcessing file {} / {}", idx, max_files);
+            let exif = match File::open(path) {
                 Ok(file) => exif::Reader::new()
                     .continue_on_error(true)
                     .read_from_container(&mut BufReader::new(&file))
                     .or_else(|err| {
                         err.distill_partial_result(|errors| {
-                            eprintln!("{}: {} warning(s)", e.path().display(), errors.len());
+                            eprintln!("\n{}: {} warning(s)", path.display(), errors.len());
                             errors.iter().for_each(|e| eprintln!("  {}", e));
                         })
                     })
@@ -84,10 +92,12 @@ fn main() -> ExitCode {
                 _ => return None,
             };
 
-            let name = e.file_name().to_string_lossy().to_string();
-            let path = e.path();
+            let name = path.file_name()?.to_string_lossy().to_string();
             let latitude = get_coord(&exif, Tag::GPSLatitude, Tag::GPSLatitudeRef, "N")?;
             let longitude = get_coord(&exif, Tag::GPSLongitude, Tag::GPSLongitudeRef, "E")?;
+            if latitude.abs() < 0.001 && longitude.abs() < 0.001 {
+                return None;
+            }
             let make = get_string(&exif, Tag::Make).unwrap_or(UNKNOWN.to_string());
             let model = get_string(&exif, Tag::Model).unwrap_or(UNKNOWN.to_string());
             let date = get_datetime(&exif, Tag::DateTimeOriginal).unwrap_or(UNKNOWN.to_string());
@@ -105,10 +115,9 @@ fn main() -> ExitCode {
                 date,
             })
         })
-        .filter(|i| i.lat.abs() > 0.001 && i.lon.abs() > 0.001)
         .collect::<Vec<PhotoInfo>>();
 
-    println!("Found {} photo coordinates", photos.len());
+    println!("\nFound {} photo coordinates", photos.len());
     if photos.is_empty() {
         return ExitCode::SUCCESS;
     }
