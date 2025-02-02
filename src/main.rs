@@ -72,7 +72,7 @@ fn main() -> ExitCode {
         .collect::<Vec<PathBuf>>();
     let max_files = supported_files.len();
 
-    let photos = supported_files
+    let mut photos = supported_files
         .iter()
         .enumerate()
         .filter_map(|(idx, path)| {
@@ -116,6 +116,7 @@ fn main() -> ExitCode {
             })
         })
         .collect::<Vec<PhotoInfo>>();
+    photos.sort_by_key(|v| v.date.clone());
 
     println!("\nFound {} photo coordinates", photos.len());
     if photos.is_empty() {
