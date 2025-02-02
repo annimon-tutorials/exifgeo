@@ -116,7 +116,7 @@ map.on('click', event => {
     } else {
       // Show photo details
       const details = features.map(f => photoDetails(f));
-      document.getElementById('photo-details').innerHTML = details.join();
+      document.getElementById('photo-details').innerHTML = details.join("");
     }
   });
 });
@@ -125,7 +125,7 @@ const handleMapDataLoaded = items => {
   const transform = ol.proj.getTransform('EPSG:4326', 'EPSG:3857');
   items.forEach(item => {
     const feature = new ol.Feature(item);
-    feature.set('url', item.thumb);
+    feature.set('url', item.thumb ? item.thumb : thumbnail(item.name));
     const coordinate = transform([parseFloat(item.lon), parseFloat(item.lat)]);
     feature.setGeometry(new ol.geom.Point(coordinate));
     photosSource.addFeature(feature);
@@ -185,6 +185,24 @@ function photoStyle(feature, scale) {
 
 function thumbStyle(feature, resolution) {
   return [photoStyle(feature, clamp(0.2, 0.1 / resolution, 1))];
+}
+
+function thumbnail(str) {
+  const hue = hueColor(str);
+  const svg = `
+      <svg width="160" height="120" xmlns="http://www.w3.org/2000/svg">
+        <rect width="100%" height="100%" fill="hsl(${hue}, 60%, 50%)" stroke="hsl(${hue}, 55%, 30%)" stroke-width="2"/>
+      </svg>
+  `.trim();
+  return `data:image/svg+xml;base64,${btoa(svg)}`;
+}
+
+function hueColor(str) {
+  let hash = 0;
+  for (let i = 0; i < str.length; i++) {
+    hash = str.charCodeAt(i) + ((hash << 5) - hash);
+  }
+  return hash % 360;
 }
 
 function clamp(min, value, max) {

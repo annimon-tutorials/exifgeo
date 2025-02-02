@@ -32,6 +32,20 @@ struct PhotoInfo {
     date: String,
 }
 
+enum ThumbMode {
+    None,
+    Exif,
+}
+
+impl ThumbMode {
+    fn create_dir(&self, thumbs_dir: &str) -> Result<(), std::io::Error> {
+        match self {
+            ThumbMode::Exif => fs::create_dir_all(thumbs_dir),
+            _ => Ok(()),
+        }
+    }
+}
+
 fn main() -> ExitCode {
     let dir = env::args_os()
         .nth(1)
@@ -43,7 +57,8 @@ fn main() -> ExitCode {
     }
 
     let thumbs_dir = "thumbs";
-    if let Err(e) = fs::create_dir_all(thumbs_dir) {
+    let thumb_mode = ThumbMode::Exif;
+    if let Err(e) = thumb_mode.create_dir(thumbs_dir) {
         eprintln!("Could not create {} directory: {}", thumbs_dir, e);
         return ExitCode::FAILURE;
     }
@@ -101,8 +116,12 @@ fn main() -> ExitCode {
             let make = get_string(&exif, Tag::Make).unwrap_or(UNKNOWN.to_string());
             let model = get_string(&exif, Tag::Model).unwrap_or(UNKNOWN.to_string());
             let date = get_datetime(&exif, Tag::DateTimeOriginal).unwrap_or(UNKNOWN.to_string());
-            let thumb = get_thumbnail_data(&exif)
-                .and_then(|data| save_thumbnail(format!("{}/t{}.jpg", thumbs_dir, idx), data))?;
+            let thumb = match thumb_mode {
+                ThumbMode::Exif => get_thumbnail_data(&exif).and_then(|data| {
+                    save_thumbnail(format!("{}/t{}.jpg", thumbs_dir, idx), data)
+                })?,
+                _ => "".to_string(),
+            };
 
             Some(PhotoInfo {
                 name,
